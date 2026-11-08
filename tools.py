@@ -14,70 +14,61 @@ import subprocess
 from pathlib import Path
 
 # ---------------------------------------------------------------- schemas
+#
+# Responses API shape: flat (no nested "function" object), and `strict: True`
+# requires additionalProperties:false plus EVERY property listed in `required`.
+# So there are no optional arguments here by design.
+
+def _tool(name, description, properties):
+    return {
+        "type": "function",
+        "name": name,
+        "description": description,
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "properties": properties,
+            "required": list(properties),
+            "additionalProperties": False,
+        },
+    }
+
 
 TOOL_SCHEMAS = [
-    {
-        "name": "list_files",
-        "description": (
-            "List files and directories under a path in the workspace. "
-            "Use '.' for the workspace root. Start here when you don't know the layout."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"path": {"type": "string", "description": "Relative path. Default '.'"}},
-            "required": [],
+    _tool(
+        "list_files",
+        "List files and directories under a path in the workspace. "
+        "Pass '.' for the workspace root. Start here when you don't know the layout.",
+        {"path": {"type": "string", "description": "Relative path, or '.' for the root"}},
+    ),
+    _tool(
+        "read_file",
+        "Read a UTF-8 text file from the workspace. Returns the whole file with line numbers.",
+        {"path": {"type": "string", "description": "Path relative to the workspace root"}},
+    ),
+    _tool(
+        "write_file",
+        "Create or overwrite a file in the workspace with the given content. "
+        "Read the file first if you are modifying an existing one.",
+        {
+            "path": {"type": "string", "description": "Path relative to the workspace root"},
+            "content": {"type": "string", "description": "The complete new contents of the file"},
         },
-    },
-    {
-        "name": "read_file",
-        "description": "Read a UTF-8 text file from the workspace. Returns the whole file with line numbers.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"path": {"type": "string", "description": "Path relative to the workspace root"}},
-            "required": ["path"],
-        },
-    },
-    {
-        "name": "write_file",
-        "description": (
-            "Create or overwrite a file in the workspace with the given content. "
-            "Read the file first if you are modifying an existing one."
-        ),
-        "eager_input_streaming": True,  # stream big file bodies as they are generated
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "path": {"type": "string"},
-                "content": {"type": "string"},
-            },
-            "required": ["path", "content"],
-        },
-    },
-    {
-        "name": "run_bash",
-        "description": (
-            "Run a shell command inside the workspace directory and return stdout+stderr. "
-            "Use for tests, greps, running scripts. 30s timeout."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"command": {"type": "string"}},
-            "required": ["command"],
-        },
-    },
-    {
-        "name": "load_skill",
-        "description": (
-            "Load the full instructions for one of the skills listed in your system prompt. "
-            "Only the name and description are preloaded -- call this to get the actual steps."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"name": {"type": "string", "description": "The skill's name, exactly as listed"}},
-            "required": ["name"],
-        },
-    },
+    ),
+    _tool(
+        "run_bash",
+        "Run a shell command inside the workspace directory and return stdout+stderr. "
+        "Use for running scripts, tests and greps. 30s timeout.",
+        {"command": {"type": "string", "description": "The shell command to run"}},
+    ),
+    _tool(
+        "load_skill",
+        "Load the full instructions for one of the skills listed in your system prompt. "
+        "Only the name and description are preloaded -- call this to get the actual steps.",
+        {"name": {"type": "string", "description": "The skill's name, exactly as listed"}},
+    ),
 ]
+
 
 # ---------------------------------------------------------------- guards
 
