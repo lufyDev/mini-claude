@@ -1,0 +1,9 @@
+# Railway reads this on deploy. Everything here can also be set in the UI.
+[build]
+builder = "dockerfile"
+
+[deploy]
+healthcheckPath = "/healthz"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

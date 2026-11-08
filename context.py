@@ -24,8 +24,41 @@ How you operate:
 
 
 ROOT = Path(__file__).parent.resolve()
+
+# Two different things, deliberately separated for deployment:
+#   CONFIG_DIR — skills and CONTEXT.md. Ships inside the image, read-only.
+#   STATE_DIR  — sessions, usage ledger, per-visitor workspaces. Must be
+#                writable, and must survive a restart if you want the daily
+#                spend cap to mean anything on a host with an ephemeral disk.
 CONFIG_DIR = ROOT / ".miniclaude"
 WORKSPACE = ROOT / "workspace"
+
+
+def _resolve_state_dir() -> Path:
+    """STATE_DIR if it is actually writable, else fall back and say so.
+
+    A half-working persistent directory is worse than a known-ephemeral one,
+    so this probes instead of assuming (mounted volumes are often root-owned
+    while the container runs as a non-root user).
+    """
+    default = ROOT / ".miniclaude"
+    raw = os.environ.get("STATE_DIR")
+    if not raw:
+        return default
+    candidate = Path(raw)
+    try:
+        candidate.mkdir(parents=True, exist_ok=True)
+        probe = candidate / ".write-probe"
+        probe.write_text("ok")
+        probe.unlink()
+        return candidate
+    except OSError as exc:
+        print(f"[mini-claude] STATE_DIR={raw} is not writable ({exc}); "
+              f"falling back to {default}. Spend caps will reset on restart.")
+        return default
+
+
+STATE_DIR = _resolve_state_dir()
 
 
 def load_env(path: Path = ROOT / ".env") -> None:

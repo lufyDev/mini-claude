@@ -12,9 +12,9 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from context import CONFIG_DIR
+from context import STATE_DIR
 
-LEDGER = CONFIG_DIR / "usage.jsonl"
+LEDGER = STATE_DIR / "usage.jsonl"
 
 # USD per 1,000,000 tokens: (input, output). From OpenAI's models page.
 PRICES = {

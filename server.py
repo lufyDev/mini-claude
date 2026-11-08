@@ -9,6 +9,8 @@ daily spend cap. See limits.py for the policy and why each one is there.
 """
 import json
 import re
+import shutil
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -18,19 +20,20 @@ from pydantic import BaseModel
 
 import limits
 from agent import MODEL, Agent
-from context import CONFIG_DIR, ROOT, WORKSPACE
+from context import ROOT, STATE_DIR, WORKSPACE
 from tools import safe_path
 from usage import BUDGET_USD, LEDGER
 
 app = FastAPI(title="mini-claude")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
-WORKSPACES = ROOT / "workspaces"
+WORKSPACES = STATE_DIR / "workspaces"
 SESSIONS: dict[str, Agent] = {}
 TURNS: dict[str, int] = {}
 rate = limits.RateLimiter()
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+WORKSPACE_TTL_HOURS = 24
 
 
 class ChatRequest(BaseModel):
@@ -50,7 +53,7 @@ def workspace_for(session_id: str) -> Path:
 def get_agent(session_id: str) -> Agent:
     if session_id not in SESSIONS:
         SESSIONS[session_id] = Agent(
-            session_path=CONFIG_DIR / "sessions" / f"web-{session_id}.json",
+            session_path=STATE_DIR / "sessions" / f"web-{session_id}.json",
             session_name=f"web-{session_id}",
             workspace=workspace_for(session_id),
         )
@@ -65,6 +68,26 @@ def refusal(message: str) -> StreamingResponse:
     """Refusals go back down the same event stream, so the UI needs no new path."""
     body = sse({"type": "error", "message": message}) + sse({"type": "done", "usage": {}})
     return StreamingResponse(iter([body]), media_type="text/event-stream")
+
+
+@app.on_event("startup")
+def startup():
+    """Sweep stale visitor workspaces so a volume doesn't grow forever."""
+    cutoff = time.time() - WORKSPACE_TTL_HOURS * 3600
+    if not WORKSPACES.is_dir():
+        return
+    for child in WORKSPACES.iterdir():
+        try:
+            if child.is_dir() and child.stat().st_mtime < cutoff:
+                shutil.rmtree(child)
+        except OSError:
+            pass
+
+
+@app.get("/healthz")
+def healthz():
+    """Railway/Cloud Run healthcheck. Deliberately touches nothing."""
+    return {"ok": True}
 
 
 @app.get("/")

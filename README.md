@@ -118,8 +118,11 @@ gcloud run deploy mini-claude --source . --allow-unauthenticated \
   --set-env-vars DEMO_MODE=1 --set-secrets OPENAI_API_KEY=openai-key:latest
 ```
 
-**Railway** is fewer steps if you already use it: connect the repo, it finds the
-Dockerfile, add `OPENAI_API_KEY` as a variable. Always-on, ~$5/mo.
+**Railway** is fewer steps if you already use it — step-by-step in
+[docs/DEPLOY.md](docs/DEPLOY.md), including the bit that bites: its filesystem
+is ephemeral, so without a mounted volume the daily spend cap resets on every
+wake. Back it with a monthly budget on the OpenAI account, which is the only
+limit that's enforced regardless of what the container does.
 
 `OPENAI_API_KEY` is **never baked into the image** — `.env` is in
 `.dockerignore` and deleted in the build. The host injects it at runtime.
@@ -197,6 +200,11 @@ model act on it.
 | `.miniclaude/sessions/*.json` | Saved transcripts |
 | `.miniclaude/usage.jsonl` | One line per API call: tokens and cost |
 | `.env` | `OPENAI_API_KEY`, `OPENAI_MODEL` (gitignored) |
+
+`STATE_DIR` splits writable state (sessions, usage ledger, visitor workspaces)
+from the config that ships inside the image, so a deployment can point it at a
+mounted volume. It's probed at startup and falls back loudly if it isn't
+writable.
 | `workspace/` | The only directory the agent can touch |
 
 Knobs: `MODEL`, `MAX_TURNS`, `REASONING` at the top of `agent.py`;
