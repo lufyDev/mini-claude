@@ -84,6 +84,9 @@ def _safe_path(workspace: Path, raw: str) -> Path:
     return target
 
 
+safe_path = _safe_path   # re-exported: server.py uses the same guard
+
+
 def _clip(text: str) -> str:
     if len(text) <= MAX_OUTPUT_CHARS:
         return text
