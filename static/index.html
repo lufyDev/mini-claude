@@ -138,20 +138,33 @@ const viewer = document.getElementById("viewer");
 const hint = document.getElementById("hint");
 const sessionId = Math.random().toString(36).slice(2);
 
-/* The placeholder is a usable suggestion, so let Tab accept it. Only when the
-   field is empty -- otherwise Tab stays Tab and keyboard users can leave. */
-const SUGGESTION = input.placeholder;
+/* A short guided tour rather than one suggestion forever: each step shows a
+   different capability, and the list advances only when a suggestion is
+   actually used -- type your own thing and the suggestion waits for you. */
+const SUGGESTIONS = [
+  "create hello.py that prints the first 10 primes, then run it",
+  "review hello.py",                                   // loads the code-review skill
+  "add asserts for it in test_hello.py and run them",  // multi-file
+  "list the workspace and explain what each file does",
+];
+const NO_MORE = "ask it to write, run or review something";
+let step = 0;
+
+const suggestion = () => (step < SUGGESTIONS.length ? SUGGESTIONS[step] : null);
 
 function syncHint() {
-  hint.classList.toggle("gone", input.value.length > 0 || input.disabled);
+  const s = suggestion();
+  input.placeholder = s || NO_MORE;
+  hint.classList.toggle("gone", !s || input.value.length > 0 || input.disabled);
 }
 
 input.addEventListener("input", syncHint);
 input.addEventListener("keydown", (e) => {
-  if (e.key !== "Tab" || e.shiftKey || input.value !== "") return;
+  const s = suggestion();
+  if (!s || e.key !== "Tab" || e.shiftKey || input.value !== "") return;
   e.preventDefault();
-  input.value = SUGGESTION;
-  input.setSelectionRange(SUGGESTION.length, SUGGESTION.length);
+  input.value = s;
+  input.setSelectionRange(s.length, s.length);
   syncHint();
 });
 
@@ -281,6 +294,7 @@ form.onsubmit = async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
+  if (text === suggestion()) step += 1;   // used it -> move the tour on
   input.value = "";
   send.disabled = true;
   input.disabled = true;
