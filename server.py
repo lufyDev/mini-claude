@@ -14,8 +14,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from agent import Agent
+from agent import MODEL, Agent
 from context import CONFIG_DIR, ROOT
+from usage import BUDGET_USD
 
 app = FastAPI(title="mini-claude")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
@@ -31,7 +32,7 @@ class ChatRequest(BaseModel):
 def get_agent(session_id: str) -> Agent:
     if session_id not in SESSIONS:
         path = CONFIG_DIR / "sessions" / f"web-{session_id}.json"
-        SESSIONS[session_id] = Agent(session_path=path)
+        SESSIONS[session_id] = Agent(session_path=path, session_name=f"web-{session_id}")
     return SESSIONS[session_id]
 
 
@@ -56,6 +57,11 @@ def chat(req: ChatRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.get("/api/meta")
+def meta():
+    return {"model": MODEL, "budget_usd": BUDGET_USD}
 
 
 @app.get("/api/state")

@@ -8,16 +8,28 @@ agent's thinking, tool calls and results live.
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
-export OPENAI_API_KEY=sk-...
+cp .env.example .env            # then put your OPENAI_API_KEY in it
 
 .venv/bin/python models.py                       # which models can my key see?
 .venv/bin/python main.py                         # terminal
 .venv/bin/python main.py "write fizzbuzz"        # one-shot
 .venv/bin/python -m uvicorn server:app --reload  # web UI on :8000
+.venv/bin/python usage.py                        # what have I spent
 ```
 
-Model via `OPENAI_MODEL` (default `gpt-6.1-sol`; `gpt-6-astra` is stronger at
-code and 5x the price; `gpt-6-luna` is the cheap one).
+## Cost
+
+Default model is `gpt-6-luna` ($0.10/$0.50 per MTok), the cheapest GPT-6. A
+real task — write a script, run it, fix it, report — is **4-5 API calls and
+about $0.0006**. Set `OPENAI_MODEL` to spend more on harder work:
+`gpt-6.1-terra` ($1/$5), `gpt-6.1-sol` ($2/$10), `gpt-6-astra` ($10/$50, best
+at code).
+
+Every call is priced and appended to `.miniclaude/usage.jsonl`. `usage.py`
+totals it per model. A session stops making calls once it crosses
+`MINI_CLAUDE_BUDGET_USD` (default `$0.50`) — checked *before* each call, since a
+runaway tool loop is the expensive failure mode. `reasoning.effort` is `"low"`
+in `agent.py`; raise it if the agent gets sloppy.
 
 ## How it works
 
@@ -60,6 +72,13 @@ cache hit; the `cached` number in the usage line is the proof. And reasoning
 models need their own `reasoning` items handed back verbatim alongside the tool
 outputs, which falls out of appending all of `response.output` unmodified.
 
+> Measured caveat: `cached` is **0% in practice here**. OpenAI only caches
+> prefixes of 1024+ tokens, and this agent's prefix is ~800 (short system
+> prompt, five small tools). The discipline is still correct and the number
+> lights up on longer conversations — but don't claim a cache win you can't
+> show. Worth knowing that a bigger system prompt is what *enables* caching,
+> which is the opposite of the usual instinct.
+
 **One event stream, two UIs.** `Agent.run()` yields plain dicts
 (`text`, `thinking`, `tool_start`, `tool_input`, `tool_result`, `done`). The
 terminal prints them with ANSI colours; `server.py` reserialises the same dicts
@@ -91,6 +110,11 @@ there are no optional tool arguments here.
 | `run_bash` | Shell command in the workspace, 30s timeout, blocklisted patterns |
 | `load_skill` | Pull one skill's full instructions into context |
 
+Watching it self-correct is the best part of the demo: `run_bash("python x.py")`
+returns exit 127, so it tries `python3` and moves on. Nothing in the harness
+handles that — the tool result is just true information, and the loop lets the
+model act on it.
+
 ## Config
 
 | Path | Purpose |
@@ -98,7 +122,9 @@ there are no optional tool arguments here.
 | `.miniclaude/CONTEXT.md` | Project rules, pasted into the system prompt verbatim (the `CLAUDE.md` equivalent) |
 | `.miniclaude/skills/<name>/SKILL.md` | A skill: YAML frontmatter (`name`, `description`) + instructions |
 | `.miniclaude/sessions/*.json` | Saved transcripts |
+| `.miniclaude/usage.jsonl` | One line per API call: tokens and cost |
+| `.env` | `OPENAI_API_KEY`, `OPENAI_MODEL` (gitignored) |
 | `workspace/` | The only directory the agent can touch |
 
-Model and limits are constants at the top of `agent.py`:
-`MODEL`, `MAX_TOKENS`, `MAX_TURNS`, `EFFORT`.
+Knobs: `MODEL`, `MAX_TURNS`, `REASONING` at the top of `agent.py`;
+`PRICES`, `BUDGET_USD` in `usage.py`.

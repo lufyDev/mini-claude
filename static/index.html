@@ -42,7 +42,7 @@
 </style>
 </head>
 <body>
-<header><b>mini-claude</b><span>agent loop + tools + SSE trace</span></header>
+<header><b>mini-claude</b><span>agent loop + tools + SSE trace</span><span id="meta" style="margin-left:auto"></span></header>
 <div id="log"></div>
 <form id="form">
   <input id="input" placeholder="create hello.py that prints the first 10 primes, then run it" autocomplete="off">
@@ -120,8 +120,9 @@ function handle(ev) {
       add("error", "! " + ev.message);
       break;
     case "done": {
-      const u = ev.usage;
-      add("usage", `in ${u.input} · out ${u.output} · cache read ${u.cache_read} · cache write ${u.cache_write}`);
+      const u = ev.usage || {};
+      const cost = u.usd !== undefined ? `$${u.usd.toFixed(4)}` : "?";
+      add("usage", `turn ${cost} · in ${u.input ?? 0} (cached ${u.cached ?? 0}) · out ${u.output ?? 0} · session ${ev.summary || ""}`);
       break;
     }
   }
@@ -163,6 +164,10 @@ form.onsubmit = async (e) => {
   input.focus();
 };
 input.focus();
+
+fetch("/api/meta").then(r => r.json()).then(m => {
+  document.getElementById("meta").textContent = `${m.model} · budget $${m.budget_usd.toFixed(2)}`;
+});
 </script>
 </body>
 </html>

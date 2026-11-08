@@ -9,6 +9,8 @@ import sys
 
 from openai import OpenAI
 
+import context  # noqa: F401  -- loads .env
+
 client = OpenAI()
 
 ids = sorted(m.id for m in client.models.list())

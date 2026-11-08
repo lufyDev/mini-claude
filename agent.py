@@ -22,21 +22,24 @@ from openai import OpenAI
 
 from context import CONFIG_DIR, WORKSPACE, build_system_prompt
 from tools import TOOL_SCHEMAS, run_tool
+from usage import Ledger
 
-# gpt-6-astra   $10/$50   flagship, best at coding
-# gpt-6.1-sol   $2/$10    balanced  <- default
-# gpt-6-luna    $0.1/$0.5 cheap, for high volume
-MODEL = os.environ.get("OPENAI_MODEL", "gpt-6.1-sol")
+# gpt-6-luna    $0.1/$0.5  cheap  <- default
+# gpt-6.1-terra $1/$5      fast, mid
+# gpt-6.1-sol   $2/$10     balanced
+# gpt-6-astra   $10/$50    flagship, best at coding
+MODEL = os.environ.get("OPENAI_MODEL", "gpt-6-luna")
 MAX_TURNS = 20          # hard stop so a confused model can't loop forever
 
 # Reasoning depth, and whether we get a readable summary of it to stream.
-# If the API rejects this, drop "summary" first, then the whole dict.
-REASONING = {"effort": "medium", "summary": "auto"}
+# "low" keeps the output-token bill down; raise it if the agent gets sloppy.
+REASONING = {"effort": "low", "summary": "auto"}
 
 
 class Agent:
-    def __init__(self, session_path: Path | None = None):
+    def __init__(self, session_path: Path | None = None, session_name: str = "cli"):
         self.client = OpenAI()
+        self.ledger = Ledger(MODEL, session_name)
         self.workspace = WORKSPACE
         self.config_dir = CONFIG_DIR
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -59,6 +62,14 @@ class Agent:
         usage = {}
 
         for turn in range(1, MAX_TURNS + 1):
+            # Cheapest possible safety net: stop spending before the call, not
+            # after. A runaway tool loop is the expensive failure mode here.
+            if self.ledger.over_budget:
+                yield {"type": "error",
+                       "message": f"session budget reached ({self.ledger.summary()}). "
+                                  f"Raise MINI_CLAUDE_BUDGET_USD to continue."}
+                break
+
             try:
                 calls, usage = yield from self._stream_once()
             except openai.APIStatusError as exc:
@@ -99,7 +110,7 @@ class Agent:
             yield {"type": "error", "message": f"hit the {MAX_TURNS}-turn cap"}
 
         self._save()
-        yield {"type": "done", "usage": usage}
+        yield {"type": "done", "usage": usage, "summary": self.ledger.summary()}
 
     # --------------------------------------------------------------- one call
 
@@ -162,10 +173,16 @@ class Agent:
 
         # Append everything the model produced -- text, reasoning AND function
         # calls -- before we append any results.
-        self.items.extend(item.model_dump() for item in final.output)
+        # by_alias is essential: without it pydantic emits python-safe names
+        # ("async_" for the reserved word "async") and the API rejects them.
+        # mode="json" keeps the list straight-to-JSON for session saving.
+        self.items.extend(
+            item.model_dump(mode="json", by_alias=True, exclude_none=True)
+            for item in final.output
+        )
 
         ordered = [calls[i] for i in sorted(calls)]
-        return ordered, self._usage(final)
+        return ordered, self.ledger.record(self._usage(final))
 
     # ---------------------------------------------------------------- helpers
 

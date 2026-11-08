@@ -9,6 +9,7 @@ Skills use progressive disclosure: only `name` + `description` go into the
 system prompt. The body is loaded on demand by the `load_skill` tool.
 """
 import datetime
+import os
 import platform
 from pathlib import Path
 
@@ -25,6 +26,22 @@ How you operate:
 ROOT = Path(__file__).parent.resolve()
 CONFIG_DIR = ROOT / ".miniclaude"
 WORKSPACE = ROOT / "workspace"
+
+
+def load_env(path: Path = ROOT / ".env") -> None:
+    """Minimal .env loader. Real env vars always win, so `OPENAI_MODEL=x python
+    main.py` overrides the file. Avoids a python-dotenv dependency."""
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip('"\''))
+
+
+load_env()
 
 
 def discover_skills(cfg: Path) -> list[dict]:
