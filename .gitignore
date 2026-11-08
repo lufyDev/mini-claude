@@ -7,3 +7,4 @@ workspace/*
 .env
 .env.*
 .frames/
+workspaces/

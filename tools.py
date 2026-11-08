@@ -13,6 +13,9 @@ import json
 import subprocess
 from pathlib import Path
 
+from limits import (MAX_WORKSPACE_FILES, MAX_WRITE_BYTES, clean_env,
+                    command_allowed)
+
 # ---------------------------------------------------------------- schemas
 #
 # Responses API shape: flat (no nested "function" object), and `strict: True`
@@ -73,6 +76,10 @@ TOOL_SCHEMAS = [
 # ---------------------------------------------------------------- guards
 
 MAX_OUTPUT_CHARS = 20_000
+
+# Kept for local use, where limits.ALLOWED_COMMANDS is not enforced. A blocklist
+# is a list you are always missing one entry of -- the allowlist in limits.py is
+# the real control, this is just a seatbelt.
 BLOCKED = ("rm -rf /", "mkfs", "shutdown", "reboot", ":(){", "dd if=")
 
 
@@ -123,6 +130,11 @@ def _read_file(workspace, config_dir, path):
 
 def _write_file(workspace, config_dir, path, content):
     target = _safe_path(workspace, path)
+    if len(content.encode("utf-8")) > MAX_WRITE_BYTES:
+        return f"refused: file would be larger than {MAX_WRITE_BYTES} bytes"
+    existing = sum(1 for p in workspace.rglob("*") if p.is_file())
+    if existing >= MAX_WORKSPACE_FILES and not target.exists():
+        return f"refused: workspace already holds {MAX_WORKSPACE_FILES} files"
     target.parent.mkdir(parents=True, exist_ok=True)
     existed = target.exists()
     target.write_text(content, encoding="utf-8")
@@ -135,10 +147,16 @@ def _run_bash(workspace, config_dir, command):
     for bad in BLOCKED:
         if bad in low:
             return f"refused: command matches blocked pattern {bad!r}"
+    ok, reason = command_allowed(command)
+    if not ok:
+        return f"refused: {reason}"
     try:
         proc = subprocess.run(
             command, shell=True, cwd=workspace, capture_output=True,
             text=True, timeout=30,
+            # Never hand the API key to a shell the model controls: `env`
+            # would print it straight into the transcript.
+            env=clean_env(),
         )
     except subprocess.TimeoutExpired:
         return "command timed out after 30s"

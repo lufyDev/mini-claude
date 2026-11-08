@@ -53,3 +53,15 @@
 {"ts": "2026-11-08T17:48:46+00:00", "session": "web-oc49mvtxar", "model": "gpt-6-luna", "input": 819, "cached": 0, "output": 22, "usd": 9.3e-05}
 {"ts": "2026-11-08T17:48:47+00:00", "session": "web-oc49mvtxar", "model": "gpt-6-luna", "input": 867, "cached": 0, "output": 48, "usd": 0.000111}
 {"ts": "2026-11-08T17:48:49+00:00", "session": "web-oc49mvtxar", "model": "gpt-6-luna", "input": 973, "cached": 0, "output": 59, "usd": 0.000127}
+{"ts": "2026-11-08T18:00:43+00:00", "session": "web-alice", "model": "gpt-6-luna", "input": 622, "cached": 0, "output": 18, "usd": 7.1e-05}
+{"ts": "2026-11-08T18:00:45+00:00", "session": "web-alice", "model": "gpt-6-luna", "input": 654, "cached": 0, "output": 28, "usd": 7.9e-05}
+{"ts": "2026-11-08T18:00:46+00:00", "session": "web-alice", "model": "gpt-6-luna", "input": 704, "cached": 0, "output": 21, "usd": 8.1e-05}
+{"ts": "2026-11-08T18:00:48+00:00", "session": "web-alice", "model": "gpt-6-luna", "input": 751, "cached": 0, "output": 40, "usd": 9.5e-05}
+{"ts": "2026-11-08T18:00:50+00:00", "session": "web-alice", "model": "gpt-6-luna", "input": 810, "cached": 0, "output": 43, "usd": 0.000102}
+{"ts": "2026-11-08T18:00:55+00:00", "session": "web-alice", "model": "gpt-6-luna", "input": 862, "cached": 0, "output": 18, "usd": 9.5e-05}
+{"ts": "2026-11-08T18:00:56+00:00", "session": "web-alice", "model": "gpt-6-luna", "input": 893, "cached": 0, "output": 8, "usd": 9.3e-05}
+{"ts": "2026-11-08T18:00:58+00:00", "session": "web-bob", "model": "gpt-6-luna", "input": 622, "cached": 0, "output": 18, "usd": 7.1e-05}
+{"ts": "2026-11-08T18:00:59+00:00", "session": "web-bob", "model": "gpt-6-luna", "input": 654, "cached": 0, "output": 28, "usd": 7.9e-05}
+{"ts": "2026-11-08T18:01:01+00:00", "session": "web-bob", "model": "gpt-6-luna", "input": 704, "cached": 0, "output": 21, "usd": 8.1e-05}
+{"ts": "2026-11-08T18:01:02+00:00", "session": "web-bob", "model": "gpt-6-luna", "input": 751, "cached": 0, "output": 48, "usd": 9.9e-05}
+{"ts": "2026-11-08T18:01:04+00:00", "session": "web-bob", "model": "gpt-6-luna", "input": 818, "cached": 0, "output": 35, "usd": 9.9e-05}

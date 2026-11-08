@@ -37,10 +37,13 @@ REASONING = {"effort": "low", "summary": "auto"}
 
 
 class Agent:
-    def __init__(self, session_path: Path | None = None, session_name: str = "cli"):
+    def __init__(self, session_path: Path | None = None, session_name: str = "cli",
+                 workspace: Path | None = None):
         self.client = OpenAI()
         self.ledger = Ledger(MODEL, session_name)
-        self.workspace = WORKSPACE
+        # Per-session on a deployment, so two visitors can't read or clobber
+        # each other's files.
+        self.workspace = workspace or WORKSPACE
         self.config_dir = CONFIG_DIR
         self.workspace.mkdir(parents=True, exist_ok=True)
 

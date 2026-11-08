@@ -1,0 +1,13 @@
+.env
+.env.*
+.venv/
+.git/
+.frames/
+.miniclaude/sessions/
+.miniclaude/usage.jsonl
+workspace/
+workspaces/
+docs/
+scripts/
+__pycache__/
+*.pyc

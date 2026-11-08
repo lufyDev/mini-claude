@@ -147,7 +147,7 @@ function fmtSize(n) {
 
 async function loadFiles() {
   let data;
-  try { data = await (await fetch("/api/files")).json(); }
+  try { data = await (await fetch("/api/files?session_id=" + sessionId)).json(); }
   catch { return; }
   filesEl.innerHTML = "";
   if (!data.files.length) {
@@ -169,7 +169,7 @@ async function loadFiles() {
 }
 
 async function openFile(path) {
-  const data = await (await fetch("/api/file?path=" + encodeURIComponent(path))).json();
+  const data = await (await fetch(`/api/file?session_id=${sessionId}&path=${encodeURIComponent(path)}`)).json();
   document.getElementById("vpath").textContent = path;
   document.getElementById("vbody").textContent = data.error || data.content || "(empty file)";
   viewer.classList.add("open");
@@ -242,6 +242,7 @@ function handle(ev) {
       const cost = u.usd !== undefined ? `$${u.usd.toFixed(4)}` : "?";
       add("usage", `turn ${cost} · in ${u.input ?? 0} (cached ${u.cached ?? 0}) · out ${u.output ?? 0} · session ${ev.summary || ""}`);
       loadFiles();
+      loadMeta();
       break;
     }
   }
@@ -288,9 +289,14 @@ form.onsubmit = async (e) => {
   }
 };
 
-fetch("/api/meta").then(r => r.json()).then(m => {
-  document.getElementById("meta").textContent = `${m.model} · budget $${m.budget_usd.toFixed(2)}`;
-});
+function loadMeta() {
+  fetch("/api/meta?session_id=" + sessionId).then(r => r.json()).then(m => {
+    document.getElementById("meta").textContent = m.demo
+      ? `${m.model} · demo · ${m.messages_left} messages left`
+      : `${m.model} · budget $${m.budget_usd.toFixed(2)}`;
+  }).catch(() => {});
+}
+loadMeta();
 loadFiles();
 input.focus();
 </script>

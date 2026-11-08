@@ -101,6 +101,55 @@ as SSE frames. Neither renderer imports the Anthropic SDK.
 Permission prompts, context compaction, subagents, hooks, MCP, multi-file edits.
 Each is a known layer of the real thing, left out to keep the loop readable.
 
+## Deploying
+
+It's a Python process holding open SSE connections, so it needs a host that
+runs a container — not Vercel/Netlify static. The `Dockerfile` works anywhere:
+
+```bash
+docker build -t mini-claude .
+docker run -p 8000:8000 -e OPENAI_API_KEY=sk-... mini-claude
+```
+
+**Cloud Run** scales to zero, so an idle demo costs nothing:
+
+```bash
+gcloud run deploy mini-claude --source . --allow-unauthenticated \
+  --set-env-vars DEMO_MODE=1 --set-secrets OPENAI_API_KEY=openai-key:latest
+```
+
+**Railway** is fewer steps if you already use it: connect the repo, it finds the
+Dockerfile, add `OPENAI_API_KEY` as a variable. Always-on, ~$5/mo.
+
+`OPENAI_API_KEY` is **never baked into the image** — `.env` is in
+`.dockerignore` and deleted in the build. The host injects it at runtime.
+
+## Not getting abused
+
+A public agent with `bash` is a server you've handed to strangers. `DEMO_MODE=1`
+(the Dockerfile default) turns on five controls, in `limits.py`:
+
+| Risk | Control |
+|---|---|
+| Reading your API key out of the shell | `clean_env()` — the subprocess gets `PATH`/`HOME`/`LANG`/`TMPDIR` and nothing else. **On always, demo or not.** |
+| Using your box to attack something | Command **allowlist** (`python3`, `ls`, `cat`, `grep`, …). No `curl`, `pip`, `nc`, `ssh`; no `$`, backticks, `>` or `<`. |
+| Burning your credits | `DAILY_USD_CAP` across *all* visitors (default $1), checked before every call |
+| One visitor hogging it | `SESSION_MSG_CAP` (10) + `RATE_PER_MIN` per IP (6) |
+| Seeing another visitor's files | One `workspaces/<session_id>/` per visitor |
+
+Plus: non-root user who doesn't own the source, 64 KB write cap, 40-file
+workspace cap, 30s command timeout, 20-turn loop cap, session ids validated
+against `^[A-Za-z0-9_-]{1,64}$` before they reach the filesystem.
+
+Why an allowlist and not a blocklist: a blocklist of dangerous commands is a
+list you are permanently one entry short on. The leftover `BLOCKED` tuple in
+`tools.py` is a seatbelt for *local* use, not the control.
+
+What this still isn't: a sandbox. `run_bash` is a real shell in the container
+and `python3` can open sockets. For anything beyond a demo you'd want gVisor,
+a Firecracker microVM, or egress network policy. Said plainly because an
+interviewer will ask.
+
 ## Re-recording the demo
 
 ```bash
