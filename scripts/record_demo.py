@@ -24,7 +24,7 @@ OUT = ROOT / "docs" / "demo.gif"
 URL = "http://127.0.0.1:8000"
 PROMPT = "write fizzbuzz.py for 1 to 20, then run it to prove it works"
 
-WIDTH, HEIGHT = 1180, 660
+WIDTH, HEIGHT = 1180, 548
 FPS = 5                 # capture rate; also the GIF playback rate
 MAX_SECONDS = 70        # give up if the turn never finishes
 TAIL_FRAMES = 6         # linger on the finished state

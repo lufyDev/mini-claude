@@ -1,11 +1,16 @@
 # mini-claude
 
-A ~500-line coding agent: the parts of Claude Code that matter, with the parts
-that don't deliberately left out. Terminal REPL and a web UI that streams the
-agent's thinking, tool calls and results live.
+A small coding agent: the parts of Claude Code that matter, with the parts that
+don't deliberately left out. Terminal REPL and a web UI that streams the agent's
+thinking, tool calls and results live.
+
+The agent itself is ~630 lines (`agent.py`, `context.py`, `tools.py`, `main.py`,
+`server.py`). The other ~340 are what it took to put it on the internet without
+getting robbed — `limits.py`, `usage.py`, `entrypoint.py`. That ratio is the
+honest part of the project.
 
 **Try it → [mini-claude-production-002f.up.railway.app](https://mini-claude-production-002f.up.railway.app)**
-*(10 messages per visitor, cheap model, sandboxed shell — it sleeps when idle,
+*(10 messages per visitor, cheap model, locked-down shell — it sleeps when idle,
 so the first load takes a few seconds)*
 
 ![mini-claude writing fizzbuzz, failing on `python`, retrying with `python3`](docs/demo.gif)
@@ -49,22 +54,25 @@ main.py / server.py     two renderers over one event stream
     agent.py            the loop: stream -> run tools -> append -> repeat
        /  \
 context.py  tools.py    what the model knows     what the model can do
-        |
- .miniclaude/           CONTEXT.md, skills/, sessions/
+        |         \
+ .miniclaude/      limits.py + usage.py    what it may do, and what it costs
+ CONTEXT.md,                               (allowlist, caps, spend ledger)
+ skills/, sessions/
 ```
 
 **The loop is the product.** `agent.py` sends the conversation, and if the reply
-contains `tool_use` blocks it runs them locally, appends the results, and sends
-again. It stops when the model answers in plain text.
+contains `function_call` items it runs them locally, appends the results, and
+sends again. It stops when the model answers in plain text.
 
 **The model is stateless.** Nothing persists server-side. Every turn re-sends the
 whole conversation, so all "memory" is this harness rebuilding a text blob from
 disk. `context.py` is that rebuild.
 
 **The model has no hands.** It can't read a file; it emits
-`{"type":"tool_use","name":"read_file",...}` and `tools.py` decides what actually
-happens. Model-supplied paths are untrusted output — `_safe_path` refuses
-anything outside `workspace/`, and `run_bash` has a blocklist and a 30s timeout.
+`{"type":"function_call","name":"read_file","arguments":"{...}"}` and `tools.py`
+decides what actually happens. Model-supplied paths are untrusted *output*, not
+validated input — `safe_path` refuses anything outside the session's workspace,
+and `run_bash` is time-, memory- and command-limited.
 
 **Skills load lazily.** Only each skill's `name` + `description` go into the
 system prompt. The body arrives when the model calls `load_skill`. 50 skills cost
@@ -98,7 +106,8 @@ viewer can't read outside the workspace either.
 **One event stream, two UIs.** `Agent.run()` yields plain dicts
 (`text`, `thinking`, `tool_start`, `tool_input`, `tool_result`, `done`). The
 terminal prints them with ANSI colours; `server.py` reserialises the same dicts
-as SSE frames. Neither renderer imports the Anthropic SDK.
+as SSE frames. Neither renderer imports the OpenAI SDK — which is why swapping
+providers touched only `agent.py` and `tools.py`.
 
 ## Deliberately not built
 
@@ -188,7 +197,7 @@ there are no optional tool arguments here.
 | `list_files` | List a directory in the workspace |
 | `read_file` | Read a text file, line-numbered |
 | `write_file` | Create/overwrite a file |
-| `run_bash` | Shell command in the workspace, 30s timeout, blocklisted patterns |
+| `run_bash` | Shell command in the workspace; 30s wall timeout, 25 CPU-seconds, 512 MB, allowlisted in demo mode |
 | `load_skill` | Pull one skill's full instructions into context |
 
 Watching it self-correct is the best part of the demo: `run_bash("python x.py")`
@@ -204,13 +213,14 @@ model act on it.
 | `.miniclaude/skills/<name>/SKILL.md` | A skill: YAML frontmatter (`name`, `description`) + instructions |
 | `.miniclaude/sessions/*.json` | Saved transcripts |
 | `.miniclaude/usage.jsonl` | One line per API call: tokens and cost |
+| `.miniclaude/workspaces/<id>/` | One isolated scratch dir per web visitor |
+| `workspace/` | The shared scratch dir used locally and by the CLI |
 | `.env` | `OPENAI_API_KEY`, `OPENAI_MODEL` (gitignored) |
 
 `STATE_DIR` splits writable state (sessions, usage ledger, visitor workspaces)
 from the config that ships inside the image, so a deployment can point it at a
 mounted volume. It's probed at startup and falls back loudly if it isn't
 writable.
-| `workspace/` | The only directory the agent can touch |
 
 Knobs: `MODEL`, `MAX_TURNS`, `REASONING` at the top of `agent.py`;
 `PRICES`, `BUDGET_USD` in `usage.py`.
