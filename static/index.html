@@ -26,6 +26,10 @@
   /* Without this every child shrinks once the column overflows and the tool
      rows collapse into slivers. flex children default to flex-shrink:1. */
   #log > * { flex:0 0 auto; }
+  /* Bottom-anchor the transcript like a chat. An auto top margin on a spacer
+     collapses to 0 once content overflows, so scrolling still works --
+     justify-content:flex-end would clip the top instead. */
+  #log::before { content:""; margin-top:auto; }
 
   .msg { max-width:900px; white-space:pre-wrap; word-break:break-word; line-height:1.5; font-size:14px; }
   .user { color:var(--accent); }

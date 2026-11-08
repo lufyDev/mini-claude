@@ -4,6 +4,12 @@ A ~500-line coding agent: the parts of Claude Code that matter, with the parts
 that don't deliberately left out. Terminal REPL and a web UI that streams the
 agent's thinking, tool calls and results live.
 
+![mini-claude writing fizzbuzz, failing on `python`, retrying with `python3`](docs/demo.gif)
+
+Nothing in the harness handles that retry. `run_bash("python fizzbuzz.py")`
+returned exit 127, and that was simply true information in the next request —
+so the model tried `python3`. The loop is what makes self-correction free.
+
 ## Run it
 
 ```bash
@@ -94,6 +100,18 @@ as SSE frames. Neither renderer imports the Anthropic SDK.
 
 Permission prompts, context compaction, subagents, hooks, MCP, multi-file edits.
 Each is a known layer of the real thing, left out to keep the loop readable.
+
+## Re-recording the demo
+
+```bash
+.venv/bin/pip install playwright && .venv/bin/playwright install chromium
+.venv/bin/python -m uvicorn server:app --port 8000   # one terminal
+.venv/bin/python scripts/record_demo.py              # another
+```
+
+Drives the page headless, screenshots at 5fps while the agent streams, stitches
+with ffmpeg (palettegen for colour) into `docs/demo.gif`. Playwright and ffmpeg
+are demo-only — they are not in `requirements.txt`.
 
 ## Swapping the model provider
 
