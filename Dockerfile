@@ -21,7 +21,9 @@ RUN mkdir -p /data /app/.miniclaude/sessions \
  && rm -f /app/.env \
  && rm -rf /app/docs
 
-USER agent
+# No USER here on purpose: entrypoint.py starts as root only long enough to
+# chown the mounted volume, then drops to `agent` before exec'ing uvicorn.
+# The app never runs as root.
 
 # Public deployments are locked down by default; override to loosen, not tighten.
 ENV DEMO_MODE=1 \
@@ -36,4 +38,5 @@ ENV DEMO_MODE=1 \
 # image, and limits.clean_env() keeps it out of the agent's shell as well.
 
 EXPOSE 8000
+ENTRYPOINT ["python3", "/app/entrypoint.py"]
 CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-8000}"]

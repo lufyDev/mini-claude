@@ -4,6 +4,10 @@ A ~500-line coding agent: the parts of Claude Code that matter, with the parts
 that don't deliberately left out. Terminal REPL and a web UI that streams the
 agent's thinking, tool calls and results live.
 
+**Try it → [mini-claude-production-002f.up.railway.app](https://mini-claude-production-002f.up.railway.app)**
+*(10 messages per visitor, cheap model, sandboxed shell — it sleeps when idle,
+so the first load takes a few seconds)*
+
 ![mini-claude writing fizzbuzz, failing on `python`, retrying with `python3`](docs/demo.gif)
 
 Nothing in the harness handles that retry. `run_bash("python fizzbuzz.py")`

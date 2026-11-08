@@ -61,18 +61,26 @@ Don't set `PORT` — Railway injects it and the Dockerfile reads it.
 
 Mount path: `/data`. The image already sets `STATE_DIR=/data`.
 
-If the mounted volume comes up root-owned, the container runs as a non-root user
-and can't write to it. The app probes it at startup and logs:
+A mounted volume arrives **owned by root**, and the app runs as a non-root user,
+so it can't write there. That bit us on the first deploy: volume attached, no
+error anywhere, and files quietly landing in `/app/.miniclaude` instead.
+
+`entrypoint.py` handles it — starts as root, chowns `STATE_DIR`, drops to
+`agent`, then execs uvicorn. The app never runs as root.
+
+Confirm it took, in the deploy logs:
 
 ```
-[mini-claude] STATE_DIR=/data is not writable (...); falling back to
-/app/.miniclaude. Spend caps will reset on restart.
+[entrypoint] /data prepared for agent
+[entrypoint] dropped to agent (10001)
 ```
 
-Check the deploy logs for that line. If you see it, either drop the volume and
-lean on the OpenAI budget cap, or remove the `USER agent` line from the
-Dockerfile (you lose the non-root protection — only worth it if you care about
-the daily cap more).
+If you instead see `WARNING could not prepare /data` or the app's own
+`STATE_DIR ... is not writable`, the volume isn't mounted at `/data` — check
+the mount path in Settings → Volumes.
+
+The giveaway at runtime: ask the agent to run `pwd` and look at the path. It
+should say `/data/workspaces/<id>`, not `/app/.miniclaude/workspaces/<id>`.
 
 **4. Resource limits** (Service → Settings → Scale)
 
