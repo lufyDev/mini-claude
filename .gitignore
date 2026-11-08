@@ -6,5 +6,8 @@ workspace/*
 !workspace/.gitkeep
 .env
 .env.*
+!.env.example
 .frames/
 workspaces/
+.DS_Store
+.miniclaude/usage.jsonl
