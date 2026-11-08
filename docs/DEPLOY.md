@@ -74,11 +74,43 @@ lean on the OpenAI budget cap, or remove the `USER agent` line from the
 Dockerfile (you lose the non-root protection — only worth it if you care about
 the daily cap more).
 
-**4. Serverless** (Service → Settings → Deploy)
+**4. Resource limits** (Service → Settings → Scale)
+
+Railway bills **measured usage** — $10/GB/month RAM and $20/vCPU/month, per
+second — not the limit you configure. The limit is a ceiling, not a
+reservation, so raising it costs nothing and lowering it protects you.
+
+Measured on this app:
+
+| | |
+|---|---|
+| idle | 18 MB |
+| after a full agent turn | 69 MB |
+| each `python3` the agent spawns | ~14 MB, briefly |
+
+**Set 512 MB / 1 vCPU.** That is roughly 7x headroom on memory, and it caps the
+damage when a visitor asks the agent to run something expensive. Going higher
+buys nothing; going much lower risks an OOM mid-turn.
+
+Expected bill with serverless on: well under $1/month. Even always-on at this
+footprint is ~$1-2/month, because you pay for the ~0.07 GB actually resident,
+not for the 0.5 GB ceiling.
+
+**Also set a hard usage limit** (Project → Settings → Usage). Railway takes
+workloads offline when the billing cycle hits it. $5 is sensible — it is the
+only Railway-side control that stops spend dead.
+
+The app bounds its own subprocesses too, independent of all this
+(`limits.py` → `ULIMIT_PREFIX`): 25 CPU-seconds and 512 MB of address space per
+command, applied by the shell before the agent's command runs. The container
+limit protects the host; this protects the container, so one
+`python3 -c "x = [0] * 10**9"` can't take the service down.
+
+**5. Serverless** (Service → Settings → Deploy)
 
 Enable it. Takes effect on the next deploy.
 
-**5. Generate a domain** (Service → Settings → Networking → Generate Domain)
+**6. Generate a domain** (Service → Settings → Networking → Generate Domain)
 
 Put the URL in the README and on your portfolio site.
 

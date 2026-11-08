@@ -13,8 +13,8 @@ import json
 import subprocess
 from pathlib import Path
 
-from limits import (MAX_WORKSPACE_FILES, MAX_WRITE_BYTES, clean_env,
-                    command_allowed)
+from limits import (MAX_WORKSPACE_FILES, MAX_WRITE_BYTES, ULIMIT_PREFIX,
+                    clean_env, command_allowed)
 
 # ---------------------------------------------------------------- schemas
 #
@@ -152,7 +152,10 @@ def _run_bash(workspace, config_dir, command):
         return f"refused: {reason}"
     try:
         proc = subprocess.run(
-            command, shell=True, cwd=workspace, capture_output=True,
+            # The ulimits are prepended after validation, so the model's own
+            # command is what got checked against the allowlist.
+            ULIMIT_PREFIX + command,
+            shell=True, cwd=workspace, capture_output=True,
             text=True, timeout=30,
             # Never hand the API key to a shell the model controls: `env`
             # would print it straight into the transcript.

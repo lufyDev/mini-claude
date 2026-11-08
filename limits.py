@@ -30,6 +30,20 @@ RATE_PER_MIN = int(os.environ.get("RATE_PER_MIN", "6"))
 MAX_WRITE_BYTES = 64_000
 MAX_WORKSPACE_FILES = 40
 
+# Ceilings on a single tool subprocess, applied by the shell itself. The host's
+# container limit protects the host; this protects the container, so one
+# `python3 -c "x = [0] * 10**9"` from a visitor can't take the service down.
+#   -t  CPU seconds (under the 30s wall timeout, so this trips first)
+#   -v  virtual memory, KB
+# Linux honours both. macOS has no -v, hence the suppressed errors -- the
+# command still runs, just unbounded, which is fine for local use.
+SUBPROCESS_CPU_SECONDS = 25
+SUBPROCESS_MEMORY_KB = 512_000
+ULIMIT_PREFIX = (
+    f"ulimit -t {SUBPROCESS_CPU_SECONDS} 2>/dev/null; "
+    f"ulimit -v {SUBPROCESS_MEMORY_KB} 2>/dev/null; "
+)
+
 # In demo mode a command's first word must be in here. This is the line that
 # stops `curl`, `pip`, `nc`, `ssh` and friends -- an allowlist, because a
 # blocklist of dangerous commands is a list you will always be missing one of.

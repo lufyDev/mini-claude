@@ -141,8 +141,9 @@ A public agent with `bash` is a server you've handed to strangers. `DEMO_MODE=1`
 | Seeing another visitor's files | One `workspaces/<session_id>/` per visitor |
 
 Plus: non-root user who doesn't own the source, 64 KB write cap, 40-file
-workspace cap, 30s command timeout, 20-turn loop cap, session ids validated
-against `^[A-Za-z0-9_-]{1,64}$` before they reach the filesystem.
+workspace cap, 30s wall timeout and a `ulimit` of 25 CPU-seconds / 512 MB per
+command, 20-turn loop cap, session ids validated against
+`^[A-Za-z0-9_-]{1,64}$` before they reach the filesystem.
 
 Why an allowlist and not a blocklist: a blocklist of dangerous commands is a
 list you are permanently one entry short on. The leftover `BLOCKED` tuple in
