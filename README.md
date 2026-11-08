@@ -78,6 +78,20 @@ and `run_bash` is time-, memory- and command-limited.
 system prompt. The body arrives when the model calls `load_skill`. 50 skills cost
 50 lines of context instead of 50 documents.
 
+![Asked to review a file, the agent calls load_skill first, then follows the steps it just received](docs/skills.gif)
+
+Watch the order: `load_skill("code-review")` fires *before* it reads the file.
+The expanded row is the whole of `.miniclaude/skills/code-review/SKILL.md`,
+which was not in the model's context a second earlier — the system prompt only
+carried its one-line description.
+
+Then it does what the skill told it to, in order: read the target, run it, and
+report findings with line numbers. It caught the planted bug —
+`is_prime` has no `n < 2` guard, so the loop body never runs for `n = 1`,
+`is_prime(1)` returns `True`, and `1` is printed as the first prime. That's the
+test of a skill: not that it loaded, but that the work changed shape because of
+what it said.
+
 **History is append-only, and we own it.** This uses the **Responses API** (the
 GPT-6 flagship models require it for tool calling) with `store=False`, so OpenAI
 keeps nothing — `self.items` is the only copy of the conversation. The obvious
@@ -171,13 +185,20 @@ interviewer will ask.
 
 ```bash
 .venv/bin/pip install playwright && .venv/bin/playwright install chromium
-.venv/bin/python -m uvicorn server:app --port 8000   # one terminal
-.venv/bin/python scripts/record_demo.py              # another
+.venv/bin/python -m uvicorn server:app --port 8000     # one terminal
+
+# docs/demo.gif — the hero clip
+.venv/bin/python scripts/record_demo.py --open-file
+
+# docs/skills.gif — needs a primes.py in workspace/ to review first
+.venv/bin/python scripts/record_demo.py \
+    --out docs/skills.gif --prompt "review primes.py" --expand load_skill
 ```
 
 Drives the page headless, screenshots at 5fps while the agent streams, stitches
-with ffmpeg (palettegen for colour) into `docs/demo.gif`. Playwright and ffmpeg
-are demo-only — they are not in `requirements.txt`.
+with ffmpeg (palettegen for colour). `--expand <tool>` clicks a tool row open at
+the end so the clip shows what actually came back. Playwright and ffmpeg are
+demo-only — they are not in `requirements.txt`.
 
 ## Swapping the model provider
 
