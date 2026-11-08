@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+.miniclaude/sessions/
+workspace/*
+!workspace/.gitkeep
