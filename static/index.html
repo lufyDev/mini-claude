@@ -80,9 +80,15 @@
                 white-space:pre-wrap; word-break:break-word; }
 
   form { display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--line); flex:none; }
+  .field { position:relative; flex:1; min-width:0; display:flex; }
   input { flex:1; min-width:0; background:var(--panel); border:1px solid var(--line); color:var(--fg);
-          padding:10px 12px; border-radius:6px; font:inherit; font-size:14px; }
+          padding:10px 52px 10px 12px; border-radius:6px; font:inherit; font-size:14px; }
   input:focus { outline:none; border-color:var(--accent); }
+  /* "tab" affordance: the placeholder is a real suggestion, not decoration */
+  #hint { position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none;
+          color:var(--dim); font-size:10.5px; letter-spacing:1px; opacity:.65;
+          border:1px solid var(--line); border-radius:3px; padding:2px 5px; }
+  #hint.gone { display:none; }
   button.send { background:var(--accent); border:0; color:#140d0a; padding:0 18px; border-radius:6px;
                 font:inherit; font-weight:600; cursor:pointer; }
   button.send:disabled { opacity:.4; cursor:default; }
@@ -103,7 +109,11 @@
   <div id="main">
     <div id="log"></div>
     <form id="form">
-      <input id="input" placeholder="create hello.py that prints the first 10 primes, then run it" autocomplete="off">
+      <span class="field">
+        <input id="input" placeholder="create hello.py that prints the first 10 primes, then run it"
+               autocomplete="off">
+        <span id="hint">TAB</span>
+      </span>
       <button class="send" id="send">send</button>
     </form>
   </div>
@@ -125,7 +135,25 @@ const input = document.getElementById("input");
 const send = document.getElementById("send");
 const filesEl = document.getElementById("files");
 const viewer = document.getElementById("viewer");
+const hint = document.getElementById("hint");
 const sessionId = Math.random().toString(36).slice(2);
+
+/* The placeholder is a usable suggestion, so let Tab accept it. Only when the
+   field is empty -- otherwise Tab stays Tab and keyboard users can leave. */
+const SUGGESTION = input.placeholder;
+
+function syncHint() {
+  hint.classList.toggle("gone", input.value.length > 0 || input.disabled);
+}
+
+input.addEventListener("input", syncHint);
+input.addEventListener("keydown", (e) => {
+  if (e.key !== "Tab" || e.shiftKey || input.value !== "") return;
+  e.preventDefault();
+  input.value = SUGGESTION;
+  input.setSelectionRange(SUGGESTION.length, SUGGESTION.length);
+  syncHint();
+});
 
 const atBottom = () => log.scrollHeight - log.scrollTop - log.clientHeight < 60;
 const scroll = (was) => { if (was) log.scrollTop = log.scrollHeight; };
@@ -255,6 +283,8 @@ form.onsubmit = async (e) => {
   if (!text) return;
   input.value = "";
   send.disabled = true;
+  input.disabled = true;
+  syncHint();
   add("user", text);
   current = { text: null, thinking: null, tools: {}, lastTool: null };
 
@@ -285,6 +315,8 @@ form.onsubmit = async (e) => {
     add("error", "! " + err.message);
   } finally {
     send.disabled = false;
+    input.disabled = false;
+    syncHint();
     input.focus();
   }
 };
@@ -298,6 +330,7 @@ function loadMeta() {
 }
 loadMeta();
 loadFiles();
+syncHint();
 input.focus();
 </script>
 </body>
